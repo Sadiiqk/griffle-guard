@@ -1,24 +1,22 @@
-# 🛡️ Griffle-Guard: AI-Powered Security Sentry (v1.0)
-Built with 🇸🇪 in Stockholm | Powered by Google Gemini 2.5 Flash
+# 🛡️ Griffle-Guard: AI-Powered Security Sentry
+**An Autonomous Incident Response System driven by Google Gemini 2.5 Flash**
 
-Griffle-Guard is a cloud-native **Intrusion Detection & Automated Response (IDAR)** system. It uses Large Language Models to analyze system logs in real-time and execute defensive actions against detected threats.
+## 🇸🇪 Overview
+Griffle-Guard is a cloud-native security tool developed in Stockholm, Sweden. It monitors system logs in real-time and uses Generative AI to perform zero-shot forensic analysis on suspicious activity.
 
-## 🚀 Features
-* **Real-time Log Tailing:** Monitors `events.log` for instant activity detection.
-* **AI Forensic Analysis:** Uses Gemini 2.5 to identify "Impossible Travel" and high-risk geopolitical logins.
-* **Automated Defense:** Triggers `gcloud` infrastructure commands to mitigate threats immediately.
-* **GitOps Integration:** Automatically logs security incidents as GitHub Issues.
+### 🚀 Features
+- **AI Triage:** Analyzes log entries (like unauthorized North Korean logins) using `gemini-2.0-flash`.
+- **Auto-Defense:** Automatically triggers `gcloud` CLI commands to revoke sessions or adjust firewall rules upon threat detection.
+- **Containerized:** Fully Dockerized for deployment across any cloud environment.
+- **GitOps Ready:** Integrated with GitHub for incident tracking and version control.
 
-## 🛠️ Technical Stack
-* **Language:** Python 3.12
-* **AI:** Vertex AI (Gemini 2.5 Flash)
-* **Cloud:** Google Cloud Platform (GCP)
-* **Version Control:** Git & GitHub
+## 🛠️ Tech Stack
+- **Language:** Python 3.12
+- **AI Model:** Google Vertex AI (Gemini 2.5 Flash)
+- **Infrastructure:** Google Cloud Platform (GCP)
+- **Containerization:** Docker
 
-## 📝 How to Run
-1. Initialize Google Cloud ADC.
-2. Run `python3 guard.py`.
-3. Monitor `events.log` for automated AI verdicts.
-
----
-*Created by sadiiqk as a demonstration of AI-driven Cybersecurity.*
+## 📦 How to Run
+1. Clone the repo: `git clone https://github.com/sadiiqk/griffle-guard.git`
+2. Set up your `.env` with your GCP Project ID.
+3. Run the sentry: `python3 guard.py`
