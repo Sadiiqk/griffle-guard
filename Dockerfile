@@ -1,15 +1,15 @@
-# Use a tiny, secure version of Python
+# 1. Get a lightweight Python computer
 FROM python:3.12-slim
 
-# Create a place for the code
+# 2. Create a folder inside the container called /app
 WORKDIR /app
 
-# Copy the requirements and install them
+# 3. Copy our ingredients list and install the tools
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy your script and your .env (locally)
-COPY . .
+# 4. Copy our actual script into the container
+COPY guard.py .
 
-# Start the Sentry!
-CMD ["python", "guard.py"]
+# 5. Tell the container what to do when it turns on
+CMD ["python3", "guard.py"]
