@@ -1,22 +1,17 @@
-# 🛡️ Griffle-Guard: AI-Powered Security Sentry
-**An Autonomous Incident Response System driven by Google Gemini 2.5 Flash**
+# 🛡️ Griffle-Guard: Multi-Cloud AI Security Sentry
 
-## 🇸🇪 Overview
-Griffle-Guard is a cloud-native security tool developed in Stockholm, Sweden. It monitors system logs in real-time and uses Generative AI to perform zero-shot forensic analysis on suspicious activity.
+## 📖 Overview
+Griffle-Guard is a custom **SOAR (Security Orchestration, Automation, and Response)** tool built in Python. It acts as an automated security sentry that bridges Google Cloud and AWS. 
 
-### 🚀 Features
-- **AI Triage:** Analyzes log entries (like unauthorized North Korean logins) using `gemini-2.0-flash`.
-- **Auto-Defense:** Automatically triggers `gcloud` CLI commands to revoke sessions or adjust firewall rules upon threat detection.
-- **Containerized:** Fully Dockerized for deployment across any cloud environment.
-- **GitOps Ready:** Integrated with GitHub for incident tracking and version control.
+It continuously monitors local infrastructure and AWS environments (like S3 buckets) for misconfigurations or threats. When an anomaly is detected, it sends the event data to **Google Vertex AI (Gemini 1.5)** to perform zero-shot vulnerability analysis and generate a detailed Incident Response plan.
+
+## ✨ Key Features
+* **Multi-Cloud Integration:** Uses `boto3` to securely interface with AWS while running inside a Google Cloud Linux environment.
+* **AI-Driven Triage:** Leverages Google's Gemini LLM to instantly analyze security logs and classify severity (e.g., catching Public S3 buckets).
+* **Zero-Trust Credential Management:** Implements `python-dotenv` to ensure AWS Access Keys are securely loaded into memory and completely hidden from version control.
+* **Automated Patrol Loop:** Runs continuously to monitor log files and cloud infrastructure in real-time.
 
 ## 🛠️ Tech Stack
-- **Language:** Python 3.12
-- **AI Model:** Google Vertex AI (Gemini 2.5 Flash)
-- **Infrastructure:** Google Cloud Platform (GCP)
-- **Containerization:** Docker
-
-## 📦 How to Run
-1. Clone the repo: `git clone https://github.com/sadiiqk/griffle-guard.git`
-2. Set up your `.env` with your GCP Project ID.
-3. Run the sentry: `python3 guard.py`
+* **Language:** Python 3
+* **Cloud Platforms:** AWS (IAM, S3), Google Cloud Platform (Vertex AI, Cloud Shell)
+* **Libraries:** `boto3`, `google-cloud-aiplatform`, `python-dotenv`
