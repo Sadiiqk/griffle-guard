@@ -1,42 +1,76 @@
 import os
-import time
+import json
 import boto3
-from dotenv import load_dotenv
+import requests
 import vertexai
 from vertexai.generative_models import GenerativeModel
 
-# 1. SETUP
-load_dotenv()
-PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
-vertexai.init(project=PROJECT_ID, location="global")      # ✅ fixed
-model = GenerativeModel("gemini-2.5-flash")               # ✅ fixed
+# 1. AWS SECRETS MANAGER SETUP (The Vault)
+session = boto3.session.Session()
+# Change 'us-east-1' if you stored your secret in a different region!
+secrets_client = session.client(service_name='secretsmanager', region_name="eu-north-1")
 
-# 2. THE BRAIN: AI Triage Function
-def ai_triage(log_entry):
-    prompt = f"Analyze this security log for threats and suggest action: {log_entry}"
+def get_secrets():
+    secret_name = "griffle/sentry/secrets"
+    try:
+        response = secrets_client.get_secret_value(SecretId=secret_name)
+        return json.loads(response['SecretString'])
+    except Exception as e:
+        print(f"⚠️ Warning: Could not pull from AWS Vault ({e}). Falling back to local env.")
+        return {}
+
+# Load the secrets
+aws_secrets = get_secrets()
+SLACK_URL = aws_secrets.get('SLACK_WEBHOOK_URL')
+
+# 2. GOOGLE GEMINI SETUP (The Brain)
+PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
+vertexai.init(project=PROJECT_ID, location="eu-north2") 
+model = GenerativeModel("gemini-2.5-flash")
+
+# 3. NOTIFICATION LOGIC (The Voice)
+def send_to_slack(text):
+    if SLACK_URL:
+        payload = {"text": text}
+        requests.post(SLACK_URL, json=payload)
+    else:
+        print("❌ Error: No Slack URL found.")
+
+# 4. THE BRAIN: AI Triage Function
+def ai_triage(bucket_name):
+    print(f"🕵️ Analyzing: {bucket_name}")
+    prompt = f"Analyze the security risk of an AWS S3 bucket named '{bucket_name}' being PUBLIC. Give a 2-sentence warning and a severity level."
+    
     try:
         response = model.generate_content(prompt)
-        print(f"\n[SENTRY REPORT] {response.text}")
+        report = response.text
+        print(f"\n[SENTRY REPORT] {report}")
+        
+        # Send the AI's findings to Slack!
+        alert_msg = f"🚨 *SENTRY ALERT*\n*Bucket:* {bucket_name}\n*AI Analysis:* {report}"
+        send_to_slack(alert_msg)
+        
     except Exception as e:
-        print(f"❌ AI Error: {e}")
+        print(f"❌ Gemini Error: {e}")
 
-# 3. THE HANDS: AWS Scanner
-def scan_aws_s3():
+# 5. THE PATROL: Scan AWS
+s3 = boto3.resource('s3')
+s3_client = boto3.client('s3')
+
+print("-" * 50)
+print("🛡️ Griffle-Guard: VAULT-POWERED SENTRY ACTIVE")
+print("-" * 50)
+
+for bucket in s3.buckets.all():
+    name = bucket.name
     try:
-        s3 = boto3.client('s3')
-        print("\n🛰️ Scanning AWS S3 Buckets...")
-        aws_event = "ALERT: S3 Bucket 'sadiiqk-private-docs' is PUBLIC!"
-        print(f"🕵️ AWS Event Found: {aws_event}")
-        ai_triage(aws_event)
-    except Exception as e:
-        print(f"❌ AWS Error: {e}")
+        # Check if bucket is public
+        status = s3_client.get_public_access_block(Bucket=name)
+        is_public = not status['PublicAccessBlockConfiguration']['BlockPublicAll']
+    except:
+        is_public = True # If no block settings, assume it might be public
 
-# 4. THE PATROL: Main Loop
-if __name__ == "__main__":
-    print("--------------------------------------------------")
-    print("🛡️ Griffle-Guard: HYBRID SENTRY ACTIVE")
-    print("--------------------------------------------------")
-    
-    while True:
-        scan_aws_s3()
-        time.sleep(15)
+    if is_public:
+        ai_triage(name)
+
+print("\n✅ Scan Complete.")

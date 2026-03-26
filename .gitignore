@@ -1,5 +1,16 @@
-.env
-*.log
+# Security Keys (KEEP THESE LOCAL)
+google-key.json
+*.pem
+awscliv2.zip
+aws/
+
+# Python Junk
+venv/
 __pycache__/
-.python_history
+*.pyc
+.DS_Store
+
+# Google Cloud Junk
+.gcloudignore
 .env
+events.log
