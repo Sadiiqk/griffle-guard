@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Security Keys (KEEP THESE LOCAL)
 google-key.json
 *.pem
@@ -14,3 +15,11 @@ __pycache__/
 .gcloudignore
 .env
 events.log
+=======
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+*.tfvars
+lambda_function_payload.zip
+>>>>>>> 5d0c10a (feat: Integrated Terraform AWS Infrastructure and Sentry Lambda)
