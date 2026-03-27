@@ -23,3 +23,10 @@ events.log
 *.tfvars
 lambda_function_payload.zip
 >>>>>>> 5d0c10a (feat: Integrated Terraform AWS Infrastructure and Sentry Lambda)
+terraform.tfstate*
+*.zip
+google-key.json
+*.pem
+response.json
+aws/
+lambda_layer/
