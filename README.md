@@ -10,7 +10,7 @@
 
 **Griffle-Guard** is a custom Security Orchestration, Automation, and Response (SOAR) tool built in Python. It acts as an automated security sentry that bridges **Google Cloud** and **AWS** to provide full-spectrum threat detection and response.
 
-It continuously monitors local infrastructure and AWS environments (specifically targeting S3 misconfigurations and public exposure). When an anomaly is detected, it leverages **Google Vertex AI (Gemini 1.5)** to perform zero-shot vulnerability analysis, generating detailed Incident Response plans and dispatching real-time alerts to **Slack**.
+It continuously monitors local infrastructure and AWS environments (specifically targeting S3 misconfigurations and public exposure). When an anomaly is detected, it leverages **Google Vertex AI (Gemini 2.5)** to perform zero-shot vulnerability analysis, generating detailed Incident Response plans and dispatching real-time alerts to **Slack**.
 
 ---
 
