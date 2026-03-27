@@ -35,7 +35,7 @@ Griffle-Guard operates using two distinct operational modes:
 * **Multi-Cloud Integration:** Securely interfaces with AWS resources while utilizing Google Cloud's LLM capabilities.
 * **Infrastructure as Code (IaC):** Repeatable, immutable AWS deployment via `main.tf`.
 * **Serverless Efficiency:** The AWS Sentry component costs $0 when idle.
-* **AI Vulnerability Analysis:** Gemini 1.5 instantly translates raw AWS configuration errors into human-readable security alerts.
+* **AI Vulnerability Analysis:** Gemini 2.5 instantly translates raw AWS configuration errors into human-readable security alerts.
 * **Automated Slack Integration:** Real-time visibility for the Security Operations Center (SOC).
 
 ---
