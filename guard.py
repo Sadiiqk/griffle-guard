@@ -19,7 +19,7 @@ def get_secrets():
         return {}
 
 aws_secrets = get_secrets()
-SLACK_URL = aws_secrets.get('SLACK_WEBHOOK_URL') or "REMOVED_SLACK_WEBHOOK"
+SLACK_URL = aws_secrets.get('SLACK_WEBHOOK_URL') or "SLACK_WEBHOOK_URL"
 
 # 2. GOOGLE GEMINI SETUP
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
