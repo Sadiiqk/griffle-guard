@@ -1,32 +1,32 @@
-<<<<<<< HEAD
-# Security Keys (KEEP THESE LOCAL)
-google-key.json
-*.pem
-awscliv2.zip
-aws/
-
-# Python Junk
-venv/
-__pycache__/
-*.pyc
-.DS_Store
-
-# Google Cloud Junk
-.gcloudignore
-.env
-events.log
-=======
+# Terraform
 .terraform/
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
 *.tfvars
 lambda_function_payload.zip
->>>>>>> 5d0c10a (feat: Integrated Terraform AWS Infrastructure and Sentry Lambda)
-terraform.tfstate*
-*.zip
+
+# Security keys and local secrets
+.env
+.env.*
+!.env.example
 google-key.json
 *.pem
+*secret*.json
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Local and generated files
+.DS_Store
+.gcloudignore
+events.log
+*.zip
 response.json
+infra/repo-agent/repo_agent.zip
+awscliv2.zip
 aws/
 lambda_layer/
