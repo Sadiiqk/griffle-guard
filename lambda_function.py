@@ -1,4 +1,5 @@
 import boto3
+from botocore.exceptions import ClientError
 
 from providers.ai.factory import get_ai_provider
 from providers.ai.none import NoAIProvider
@@ -46,12 +47,30 @@ def scan_s3(s3, notifier, ai_provider):
                 )
                 send_finding(notifier, ai_provider, finding)
 
-        except Exception:
-            finding = (
-                f"🚨 CRITICAL: S3 bucket `{name}` has no "
-                f"Public Access Block configuration."
+        except ClientError as error:
+            error_code = error.response.get("Error", {}).get("Code", "Unknown")
+            error_message = error.response.get("Error", {}).get(
+                "Message",
+                "No error message returned",
             )
-            send_finding(notifier, ai_provider, finding)
+
+            if error_code == "NoSuchPublicAccessBlockConfiguration":
+                finding = (
+                    f"🚨 CRITICAL: S3 bucket `{name}` has no "
+                    f"Public Access Block configuration."
+                )
+                send_finding(notifier, ai_provider, finding)
+                continue
+
+            print(
+                f"S3 scan error for bucket `{name}`: "
+                f"{error_code} - {error_message}"
+            )
+
+        except Exception as error:
+            print(
+                f"Unexpected S3 scan error for bucket `{name}`: {error}"
+            )
 
 
 def scan_security_groups(ec2, notifier, ai_provider):
