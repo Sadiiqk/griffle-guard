@@ -48,6 +48,13 @@ Bedrock model:         eu.amazon.nova-micro-v1:0
 
 With the default configuration, findings are printed to the Lambda logs in Amazon CloudWatch.
 
+Griffle-Guard is designed to fail safely around optional components:
+
+- if AI analysis fails, the raw security finding is still reported
+- if Slack or Teams delivery fails, the finding is written to CloudWatch Logs and scanning continues
+- if an AI provider cannot initialize, Griffle-Guard falls back to no AI
+- if a notification provider cannot initialize, Griffle-Guard falls back to CloudWatch logging
+
 ---
 
 ## Project structure
@@ -366,8 +373,6 @@ Griffle-Guard is an MVP. Important limitations include:
 
 - Security Group scanning currently checks IPv4 `0.0.0.0/0`, not IPv6 `::/0`
 - S3 error handling should be made more specific so API/permission failures are not treated as missing Public Access Block
-- an AI provider failure can currently interrupt the scan
-- a notification provider failure can currently interrupt the scan
 - the Gemini dependency is not included in the simple Lambda ZIP build
 - automated unit/integration tests are still limited
 - the older `guard.py` path is not yet fully aligned with the Lambda provider architecture
