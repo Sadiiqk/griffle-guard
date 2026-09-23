@@ -35,3 +35,4 @@ lambda_layer/
 # AWS local files
 aws/
 awscliv2.zip
+replacements.txt
