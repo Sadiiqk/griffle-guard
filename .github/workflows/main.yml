@@ -33,6 +33,7 @@ jobs:
       - name: Check Python syntax
         run: |
           python -m py_compile lambda_function.py
+          python -m py_compile findings_api.py
           python -m py_compile providers/ai/*.py
           python -m py_compile providers/notifications/*.py
 
@@ -40,6 +41,7 @@ jobs:
         run: |
           zip -r lambda_function_payload.zip lambda_function.py providers \
             -x "*/__pycache__/*" "*.pyc"
+          zip findings_api_payload.zip findings_api.py
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
