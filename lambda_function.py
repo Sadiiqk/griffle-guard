@@ -1,4 +1,6 @@
+import hashlib
 import os
+from datetime import datetime, timezone
 
 import boto3
 from botocore.exceptions import ClientError
@@ -22,7 +24,55 @@ def build_message(ai_provider, finding):
     return f"{finding}\n\nAI analysis:\n{analysis}"
 
 
+def get_severity(finding):
+    if "CRITICAL:" in finding:
+        return "CRITICAL"
+    if "HIGH:" in finding:
+        return "HIGH"
+    return "UNKNOWN"
+
+
+def persist_finding(finding):
+    table_name = os.getenv("FINDINGS_TABLE_NAME")
+    if not table_name:
+        return
+
+    region_name = os.getenv("AWS_REGION", "eu-north-1")
+    finding_id = hashlib.sha256(
+        f"{region_name}|{finding}".encode("utf-8")
+    ).hexdigest()
+    now = datetime.now(timezone.utc).isoformat()
+
+    try:
+        table = boto3.resource("dynamodb").Table(table_name)
+        table.update_item(
+            Key={"FindingId": finding_id},
+            UpdateExpression=(
+                "SET FindingText = :finding, Severity = :severity, "
+                "#region = :region, #status = if_not_exists(#status, :open), "
+                "FirstSeen = if_not_exists(FirstSeen, :now), LastSeen = :now, "
+                "OccurrenceCount = if_not_exists(OccurrenceCount, :zero) + :one"
+            ),
+            ExpressionAttributeNames={
+                "#region": "Region",
+                "#status": "Status",
+            },
+            ExpressionAttributeValues={
+                ":finding": finding,
+                ":severity": get_severity(finding),
+                ":region": region_name,
+                ":open": "OPEN",
+                ":now": now,
+                ":zero": 0,
+                ":one": 1,
+            },
+        )
+    except Exception as error:
+        print(f"Finding persistence failed; continuing: {error}")
+
+
 def send_finding(notifier, ai_provider, finding):
+    persist_finding(finding)
     message = build_message(ai_provider, finding)
 
     try:
