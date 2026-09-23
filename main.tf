@@ -45,7 +45,7 @@ variable "gemini_model" {
 variable "bedrock_model_id" {
   type        = string
   description = "AWS Bedrock model ID"
-  default     = "amazon.nova-micro-v1:0"
+  default     = "eu.amazon.nova-micro-v1:0"
 }
 
 resource "aws_iam_role" "sentry_role" {
