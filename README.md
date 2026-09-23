@@ -370,11 +370,66 @@ If a secret is ever committed to a public repository, removing it from Git histo
 
 ---
 
+## Multi-account scanning
+
+Griffle-Guard can optionally scan multiple AWS accounts through AWS Organizations.
+
+By default this feature is disabled:
+
+```text
+organization_scan_enabled = false
+```
+
+When enabled, Griffle-Guard:
+
+1. Calls AWS Organizations to list active accounts.
+2. Uses STS `AssumeRole` to enter each member account.
+3. Assumes a read-only role named `GriffleGuardReadOnlyRole` by default.
+4. Scans S3 and EC2 Security Groups in each account.
+5. Adds the account name and account ID to each finding.
+6. Continues scanning other accounts if one account fails.
+
+Enable it with:
+
+```bash
+terraform apply \
+  -var='organization_scan_enabled=true'
+```
+
+The central Griffle-Guard Lambda needs permission to call `organizations:ListAccounts` and assume the member-account role.
+
+Each member account must contain an IAM role with the configured name, for example:
+
+```text
+GriffleGuardReadOnlyRole
+```
+
+That role should trust the central Griffle-Guard Lambda execution role and grant only the read permissions needed by the scanner, such as:
+
+```text
+s3:ListAllMyBuckets
+s3:GetBucketPublicAccessBlock
+ec2:DescribeSecurityGroups
+```
+
+You can use a different role name with:
+
+```bash
+terraform apply \
+  -var='organization_scan_enabled=true' \
+  -var='member_scan_role_name=YourReadOnlyRoleName'
+```
+
+Important: this first multi-account version scans the configured Lambda region. Large enterprise environments will also need multi-region job distribution and orchestration.
+
+---
+
 ## Current limitations
 
 Griffle-Guard is an MVP. Important limitations include:
 
 - Security Group scanning currently checks IPv4 `0.0.0.0/0`, not IPv6 `::/0`
+- multi-account scanning currently scans one configured AWS region per Lambda deployment
 - the Gemini dependency is not included in the simple Lambda ZIP build
 - automated unit/integration tests are still limited
 - the older `guard.py` path is not yet fully aligned with the Lambda provider architecture
