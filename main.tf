@@ -215,3 +215,111 @@ resource "aws_lambda_permission" "allow_cloudwatch" {
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.daily_scan.arn
 }
+
+
+resource "aws_iam_role" "findings_api_role" {
+  name = "GriffleGuard-Findings-Api-Role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "findings_api_permissions" {
+  name = "GriffleGuardFindingsApiAccess"
+  role = aws_iam_role.findings_api_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:Scan"
+        ]
+        Resource = aws_dynamodb_table.findings.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_lambda_function" "findings_api" {
+  filename         = "findings_api_payload.zip"
+  function_name    = "GriffleGuard-Findings-Api"
+  role             = aws_iam_role.findings_api_role.arn
+  handler          = "findings_api.lambda_handler"
+  runtime          = "python3.12"
+  timeout          = 15
+  memory_size      = 128
+  source_code_hash = filebase64sha256("findings_api_payload.zip")
+
+  environment {
+    variables = {
+      FINDINGS_TABLE_NAME = aws_dynamodb_table.findings.name
+    }
+  }
+}
+
+resource "aws_apigatewayv2_api" "findings" {
+  name          = "GriffleGuard-Findings-Api"
+  protocol_type = "HTTP"
+}
+
+resource "aws_apigatewayv2_integration" "findings_lambda" {
+  api_id                 = aws_apigatewayv2_api.findings.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.findings_api.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "list_findings" {
+  api_id             = aws_apigatewayv2_api.findings.id
+  route_key          = "GET /findings"
+  target             = "integrations/${aws_apigatewayv2_integration.findings_lambda.id}"
+  authorization_type = "AWS_IAM"
+}
+
+resource "aws_apigatewayv2_route" "get_finding" {
+  api_id             = aws_apigatewayv2_api.findings.id
+  route_key          = "GET /findings/{id}"
+  target             = "integrations/${aws_apigatewayv2_integration.findings_lambda.id}"
+  authorization_type = "AWS_IAM"
+}
+
+resource "aws_apigatewayv2_stage" "findings" {
+  api_id      = aws_apigatewayv2_api.findings.id
+  name        = "$default"
+  auto_deploy = true
+}
+
+resource "aws_lambda_permission" "allow_findings_api_gateway" {
+  statement_id  = "AllowExecutionFromFindingsApiGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.findings_api.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.findings.execution_arn}/*/*"
+}
+
+output "findings_api_url" {
+  description = "Base URL for the Griffle-Guard findings API. Routes require AWS IAM authorization."
+  value       = aws_apigatewayv2_api.findings.api_endpoint
+}
