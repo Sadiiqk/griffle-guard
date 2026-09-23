@@ -10,6 +10,18 @@ variable "notification_provider" {
   default     = "console"
 }
 
+variable "organization_scan_enabled" {
+  type        = bool
+  description = "Enable AWS Organizations multi-account scanning"
+  default     = false
+}
+
+variable "member_scan_role_name" {
+  type        = string
+  description = "IAM role name Griffle-Guard assumes in member AWS accounts"
+  default     = "GriffleGuardReadOnlyRole"
+}
+
 variable "slack_webhook_secret_arn" {
   type        = string
   description = "AWS Secrets Manager ARN containing the Slack webhook URL"
@@ -106,6 +118,22 @@ resource "aws_iam_role_policy" "sentry_permissions" {
           ]
           Resource = local.notification_secret_arns
         }
+      ] : [],
+      var.organization_scan_enabled ? [
+        {
+          Effect = "Allow"
+          Action = [
+            "organizations:ListAccounts"
+          ]
+          Resource = "*"
+        },
+        {
+          Effect = "Allow"
+          Action = [
+            "sts:AssumeRole"
+          ]
+          Resource = "arn:aws:iam::*:role/${var.member_scan_role_name}"
+        }
       ] : []
     )
   })
@@ -124,6 +152,9 @@ resource "aws_lambda_function" "griffleguard" {
     variables = {
       AI_PROVIDER           = var.ai_provider
       NOTIFICATION_PROVIDER = var.notification_provider
+
+      ORGANIZATION_SCAN_ENABLED = tostring(var.organization_scan_enabled)
+      MEMBER_SCAN_ROLE_NAME     = var.member_scan_role_name
 
       SLACK_WEBHOOK_SECRET_ARN = var.slack_webhook_secret_arn
       TEAMS_WEBHOOK_SECRET_ARN = var.teams_webhook_secret_arn
