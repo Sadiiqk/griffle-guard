@@ -10,18 +10,16 @@ variable "notification_provider" {
   default     = "console"
 }
 
-variable "slack_webhook_url" {
+variable "slack_webhook_secret_arn" {
   type        = string
-  description = "Slack Webhook URL"
+  description = "AWS Secrets Manager ARN containing the Slack webhook URL"
   default     = ""
-  sensitive   = true
 }
 
-variable "teams_webhook_url" {
+variable "teams_webhook_secret_arn" {
   type        = string
-  description = "Microsoft Teams Webhook URL"
+  description = "AWS Secrets Manager ARN containing the Microsoft Teams webhook URL"
   default     = ""
-  sensitive   = true
 }
 
 variable "google_cloud_project" {
@@ -48,6 +46,12 @@ variable "bedrock_model_id" {
   default     = "eu.amazon.nova-micro-v1:0"
 }
 
+locals {
+  notification_secret_arns = compact([
+    var.slack_webhook_secret_arn,
+    var.teams_webhook_secret_arn
+  ])
+}
 
 resource "aws_iam_role" "sentry_role" {
   name = "GriffleGuard-Sentry-Role-v2"
@@ -68,7 +72,6 @@ resource "aws_iam_role" "sentry_role" {
   })
 }
 
-
 resource "aws_iam_role_policy" "sentry_permissions" {
   name = "SentrySecurityAccess"
   role = aws_iam_role.sentry_role.id
@@ -76,27 +79,37 @@ resource "aws_iam_role_policy" "sentry_permissions" {
   policy = jsonencode({
     Version = "2012-10-17"
 
-    Statement = [
-      {
-        Effect = "Allow"
+    Statement = concat(
+      [
+        {
+          Effect = "Allow"
 
-        Action = [
-          "s3:ListAllMyBuckets",
-          "s3:GetBucketPublicAccessBlock",
-          "ec2:DescribeSecurityGroups",
-          "bedrock:InvokeModel",
-          "bedrock:InvokeModelWithResponseStream",
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
+          Action = [
+            "s3:ListAllMyBuckets",
+            "s3:GetBucketPublicAccessBlock",
+            "ec2:DescribeSecurityGroups",
+            "bedrock:InvokeModel",
+            "bedrock:InvokeModelWithResponseStream",
+            "logs:CreateLogGroup",
+            "logs:CreateLogStream",
+            "logs:PutLogEvents"
+          ]
 
-        Resource = "*"
-      }
-    ]
+          Resource = "*"
+        }
+      ],
+      length(local.notification_secret_arns) > 0 ? [
+        {
+          Effect = "Allow"
+          Action = [
+            "secretsmanager:GetSecretValue"
+          ]
+          Resource = local.notification_secret_arns
+        }
+      ] : []
+    )
   })
 }
-
 
 resource "aws_lambda_function" "griffleguard" {
   filename         = "lambda_function_payload.zip"
@@ -112,8 +125,8 @@ resource "aws_lambda_function" "griffleguard" {
       AI_PROVIDER           = var.ai_provider
       NOTIFICATION_PROVIDER = var.notification_provider
 
-      SLACK_WEBHOOK_URL = var.slack_webhook_url
-      TEAMS_WEBHOOK_URL = var.teams_webhook_url
+      SLACK_WEBHOOK_SECRET_ARN = var.slack_webhook_secret_arn
+      TEAMS_WEBHOOK_SECRET_ARN = var.teams_webhook_secret_arn
 
       GOOGLE_CLOUD_PROJECT  = var.google_cloud_project
       GOOGLE_CLOUD_LOCATION = var.google_cloud_location
@@ -124,19 +137,16 @@ resource "aws_lambda_function" "griffleguard" {
   }
 }
 
-
 resource "aws_cloudwatch_event_rule" "daily_scan" {
   name                = "GriffleGuard-Daily-Scan"
   schedule_expression = "rate(1 day)"
 }
-
 
 resource "aws_cloudwatch_event_target" "run_lambda" {
   rule      = aws_cloudwatch_event_rule.daily_scan.name
   target_id = "TriggerGriffleGuard"
   arn       = aws_lambda_function.griffleguard.arn
 }
-
 
 resource "aws_lambda_permission" "allow_cloudwatch" {
   statement_id  = "AllowExecutionFromCloudWatch"
