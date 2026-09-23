@@ -1,16 +1,32 @@
 import boto3
 
 from providers.ai.factory import get_ai_provider
+from providers.ai.none import NoAIProvider
+from providers.notifications.console import ConsoleNotifier
 from providers.notifications.factory import get_notifier
 
 
 def build_message(ai_provider, finding):
-    analysis = ai_provider.analyze(finding)
+    try:
+        analysis = ai_provider.analyze(finding)
+    except Exception as error:
+        print(f"AI analysis failed; using raw finding instead: {error}")
+        return finding
 
     if analysis == finding:
         return finding
 
     return f"{finding}\n\nAI analysis:\n{analysis}"
+
+
+def send_finding(notifier, ai_provider, finding):
+    message = build_message(ai_provider, finding)
+
+    try:
+        notifier.send(message)
+    except Exception as error:
+        print(f"Notification failed; writing finding to logs instead: {error}")
+        print(message)
 
 
 def scan_s3(s3, notifier, ai_provider):
@@ -28,20 +44,14 @@ def scan_s3(s3, notifier, ai_provider):
                 finding = (
                     f"⚠️ HIGH: S3 bucket `{name}` may allow public access."
                 )
-
-                notifier.send(
-                    build_message(ai_provider, finding)
-                )
+                send_finding(notifier, ai_provider, finding)
 
         except Exception:
             finding = (
                 f"🚨 CRITICAL: S3 bucket `{name}` has no "
                 f"Public Access Block configuration."
             )
-
-            notifier.send(
-                build_message(ai_provider, finding)
-            )
+            send_finding(notifier, ai_provider, finding)
 
 
 def scan_security_groups(ec2, notifier, ai_provider):
@@ -71,11 +81,7 @@ def scan_security_groups(ec2, notifier, ai_provider):
                         f"🚨 CRITICAL: Security Group `{group_name}` "
                         f"({group_id}) allows ALL traffic from the internet."
                     )
-
-                    notifier.send(
-                        build_message(ai_provider, finding)
-                    )
-
+                    send_finding(notifier, ai_provider, finding)
                     continue
 
                 for port, service in risky_ports.items():
@@ -85,18 +91,34 @@ def scan_security_groups(ec2, notifier, ai_provider):
                             f"({group_id}) exposes {service} port {port} "
                             f"to the internet."
                         )
+                        send_finding(notifier, ai_provider, finding)
 
-                        notifier.send(
-                            build_message(ai_provider, finding)
-                        )
+
+def get_safe_ai_provider():
+    try:
+        return get_ai_provider()
+    except Exception as error:
+        print(f"AI provider initialization failed; AI disabled: {error}")
+        return NoAIProvider()
+
+
+def get_safe_notifier():
+    try:
+        return get_notifier()
+    except Exception as error:
+        print(
+            "Notification provider initialization failed; "
+            f"falling back to CloudWatch logs: {error}"
+        )
+        return ConsoleNotifier()
 
 
 def lambda_handler(event, context):
     s3 = boto3.client("s3")
     ec2 = boto3.client("ec2")
 
-    notifier = get_notifier()
-    ai_provider = get_ai_provider()
+    notifier = get_safe_notifier()
+    ai_provider = get_safe_ai_provider()
 
     try:
         scan_s3(s3, notifier, ai_provider)
@@ -104,10 +126,10 @@ def lambda_handler(event, context):
 
         return {"status": "Scan Complete"}
 
-    except Exception as e:
-        print(f"Error: {e}")
+    except Exception as error:
+        print(f"Scan failed: {error}")
 
         return {
             "status": "Error",
-            "error": str(e),
+            "error": str(error),
         }
