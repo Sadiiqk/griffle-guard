@@ -10,7 +10,7 @@ The main deployment path uses **AWS Lambda + EventBridge + Terraform**. Griffle-
   - RDP (port 3389) open to `0.0.0.0/0`
   - rules that allow all traffic from `0.0.0.0/0`
 
-Findings can be enriched with **Amazon Bedrock** and written to CloudWatch Logs. The project also includes optional notification providers for Slack and Microsoft Teams.
+Findings can be enriched with **Amazon Bedrock**, stored in DynamoDB, exposed through an IAM-protected read-only HTTP API, and written to CloudWatch Logs. The project also includes optional notification providers for Slack and Microsoft Teams.
 
 > Griffle-Guard is currently an MVP / learning and portfolio project. Test it in a non-production AWS account before using it in a production environment.
 
@@ -65,6 +65,7 @@ Griffle-Guard is designed to fail safely around optional components and AWS API 
 ```text
 .
 ├── lambda_function.py
+├── findings_api.py
 ├── main.tf
 ├── providers/
 │   ├── ai/
@@ -125,10 +126,11 @@ cd griffle-guard
 
 ## 2. Build the Lambda deployment package
 
-Terraform expects a local file called:
+Terraform expects two local deployment packages:
 
 ```text
 lambda_function_payload.zip
+findings_api_payload.zip
 ```
 
 Create it with:
@@ -136,9 +138,11 @@ Create it with:
 ```bash
 zip -r lambda_function_payload.zip lambda_function.py providers \
   -x "*/__pycache__/*" "*.pyc"
+
+zip findings_api_payload.zip findings_api.py
 ```
 
-The ZIP file is intentionally ignored by Git and should not be committed.
+The ZIP files are intentionally ignored by Git and should not be committed.
 
 You can inspect the package with:
 
@@ -255,6 +259,46 @@ AI analysis:
 The rule allows internet users to attempt SSH access.
 Restrict the rule to trusted IP ranges.
 ```
+
+---
+
+## Findings API
+
+Griffle-Guard includes a read-only HTTP API for stored findings.
+
+Routes:
+
+```text
+GET /findings
+GET /findings/{id}
+```
+
+Supported list filters:
+
+```text
+?severity=CRITICAL
+?status=OPEN
+?limit=50
+?nextToken=...
+```
+
+The API is protected with **AWS IAM authorization**. Anonymous requests are rejected. A caller must sign the request with AWS credentials that are allowed to invoke the API.
+
+The API Lambda has read-only DynamoDB permissions:
+
+```text
+dynamodb:GetItem
+dynamodb:Scan
+```
+
+After deployment, Terraform outputs:
+
+```text
+findings_api_url
+```
+
+This IAM-protected API is the backend foundation for the future SSO/RBAC dashboard. The current API does not yet implement end-user SSO or team-level filtering.
+
 
 ---
 
