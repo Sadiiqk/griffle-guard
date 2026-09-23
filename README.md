@@ -260,8 +260,8 @@ Terraform exposes these main variables:
 | `google_cloud_project` | empty | Google Cloud project used when Gemini is selected |
 | `google_cloud_location` | `europe-west1` | Vertex AI location |
 | `gemini_model` | `gemini-2.5-flash` | Gemini model name |
-| `slack_webhook_url` | empty | Slack webhook URL |
-| `teams_webhook_url` | empty | Microsoft Teams webhook URL |
+| `slack_webhook_secret_arn` | empty | Secrets Manager ARN containing the Slack webhook URL |
+| `teams_webhook_secret_arn` | empty | Secrets Manager ARN containing the Microsoft Teams webhook URL |
 
 ### Disable AI
 
@@ -283,24 +283,42 @@ The Lambda execution role needs permission to invoke the selected Bedrock model,
 
 ### Use Slack
 
-Users should provide their **own** Slack webhook. Never commit a webhook URL to Git.
+Users should provide their **own** Slack webhook, stored in AWS Secrets Manager. Never commit a webhook URL to Git or pass it directly to Terraform.
 
-Example:
+Create the secret in AWS first:
+
+```bash
+aws secretsmanager create-secret \
+  --name griffle-guard/slack-webhook \
+  --secret-string 'YOUR_WEBHOOK_URL'
+```
+
+Copy the secret ARN from the command output, then deploy:
 
 ```bash
 terraform apply \
   -var='notification_provider=slack' \
-  -var='slack_webhook_url=YOUR_WEBHOOK_URL'
+  -var='slack_webhook_secret_arn=YOUR_SECRET_ARN'
 ```
 
-For real environments, avoid placing secrets directly in shell history. Prefer a secure secret-management approach such as AWS Secrets Manager.
+The Lambda receives only the secret ARN and retrieves the webhook value at runtime using `secretsmanager:GetSecretValue`.
 
 ### Use Microsoft Teams
+
+Store the Teams webhook in AWS Secrets Manager first:
+
+```bash
+aws secretsmanager create-secret \
+  --name griffle-guard/teams-webhook \
+  --secret-string 'YOUR_WEBHOOK_URL'
+```
+
+Then deploy with the secret ARN:
 
 ```bash
 terraform apply \
   -var='notification_provider=teams' \
-  -var='teams_webhook_url=YOUR_WEBHOOK_URL'
+  -var='teams_webhook_secret_arn=YOUR_SECRET_ARN'
 ```
 
 Webhook payload compatibility can vary depending on the Teams webhook/workflow type, so test the integration before relying on it for production alerts.
@@ -328,6 +346,8 @@ Never commit:
 - Terraform variable files containing secrets
 - Terraform state files containing sensitive values
 
+Slack and Teams webhook values are designed to live in AWS Secrets Manager. Terraform and Lambda configuration should contain only the secret ARN, not the webhook value itself.
+
 The repository's `.gitignore` is designed to exclude common secret and generated files, but you should still review changes before every commit.
 
 A useful check before pushing changes is:
@@ -348,7 +368,6 @@ Griffle-Guard is an MVP. Important limitations include:
 - S3 error handling should be made more specific so API/permission failures are not treated as missing Public Access Block
 - an AI provider failure can currently interrupt the scan
 - a notification provider failure can currently interrupt the scan
-- Slack/Teams secrets are currently passed through Terraform/Lambda configuration rather than fetched from Secrets Manager
 - the Gemini dependency is not included in the simple Lambda ZIP build
 - automated unit/integration tests are still limited
 - the older `guard.py` path is not yet fully aligned with the Lambda provider architecture
