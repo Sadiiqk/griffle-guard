@@ -1,7 +1,7 @@
 variable "ai_provider" {
   type        = string
   description = "AI provider to use: none, gemini, or bedrock"
-  default     = "none"
+  default     = "bedrock"
 }
 
 variable "notification_provider" {
@@ -48,22 +48,26 @@ variable "bedrock_model_id" {
   default     = "eu.amazon.nova-micro-v1:0"
 }
 
+
 resource "aws_iam_role" "sentry_role" {
   name = "GriffleGuard-Sentry-Role-v2"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
 
-    Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
 
-      Principal = {
-        Service = "lambda.amazonaws.com"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
       }
-    }]
+    ]
   })
 }
+
 
 resource "aws_iam_role_policy" "sentry_permissions" {
   name = "SentrySecurityAccess"
@@ -72,32 +76,36 @@ resource "aws_iam_role_policy" "sentry_permissions" {
   policy = jsonencode({
     Version = "2012-10-17"
 
-    Statement = [{
-      Effect = "Allow"
+    Statement = [
+      {
+        Effect = "Allow"
 
-      Action = [
-        "s3:ListAllMyBuckets",
-        "s3:GetBucketPublicAccessBlock",
-        "ec2:DescribeSecurityGroups",
-        "bedrock:InvokeModel",
-        "bedrock:InvokeModelWithResponseStream",
-        "logs:CreateLogGroup",
-        "logs:CreateLogStream",
-        "logs:PutLogEvents"
-      ]
+        Action = [
+          "s3:ListAllMyBuckets",
+          "s3:GetBucketPublicAccessBlock",
+          "ec2:DescribeSecurityGroups",
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream",
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
 
-      Resource = "*"
-    }]
+        Resource = "*"
+      }
+    ]
   })
 }
 
+
 resource "aws_lambda_function" "griffleguard" {
-  filename      = "lambda_function_payload.zip"
-  function_name = "GriffleGuard-Sentry-v2"
-  role          = aws_iam_role.sentry_role.arn
-  handler       = "lambda_function.lambda_handler"
-  runtime       = "python3.12"
-  timeout       = 60
+  filename         = "lambda_function_payload.zip"
+  function_name    = "GriffleGuard-Sentry-v2"
+  role             = aws_iam_role.sentry_role.arn
+  handler          = "lambda_function.lambda_handler"
+  runtime          = "python3.12"
+  timeout          = 60
+  source_code_hash = filebase64sha256("lambda_function_payload.zip")
 
   environment {
     variables = {
@@ -116,16 +124,19 @@ resource "aws_lambda_function" "griffleguard" {
   }
 }
 
+
 resource "aws_cloudwatch_event_rule" "daily_scan" {
   name                = "GriffleGuard-Daily-Scan"
   schedule_expression = "rate(1 day)"
 }
+
 
 resource "aws_cloudwatch_event_target" "run_lambda" {
   rule      = aws_cloudwatch_event_rule.daily_scan.name
   target_id = "TriggerGriffleGuard"
   arn       = aws_lambda_function.griffleguard.arn
 }
+
 
 resource "aws_lambda_permission" "allow_cloudwatch" {
   statement_id  = "AllowExecutionFromCloudWatch"
