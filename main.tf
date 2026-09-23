@@ -65,6 +65,25 @@ locals {
   ])
 }
 
+resource "aws_dynamodb_table" "findings" {
+  name         = "GriffleGuard-Findings"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "FindingId"
+
+  attribute {
+    name = "FindingId"
+    type = "S"
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  server_side_encryption {
+    enabled = true
+  }
+}
+
 resource "aws_iam_role" "sentry_role" {
   name = "GriffleGuard-Sentry-Role-v2"
 
@@ -108,6 +127,15 @@ resource "aws_iam_role_policy" "sentry_permissions" {
           ]
 
           Resource = "*"
+        }
+      ],
+      [
+        {
+          Effect = "Allow"
+          Action = [
+            "dynamodb:UpdateItem"
+          ]
+          Resource = aws_dynamodb_table.findings.arn
         }
       ],
       length(local.notification_secret_arns) > 0 ? [
@@ -155,6 +183,7 @@ resource "aws_lambda_function" "griffleguard" {
 
       ORGANIZATION_SCAN_ENABLED = tostring(var.organization_scan_enabled)
       MEMBER_SCAN_ROLE_NAME     = var.member_scan_role_name
+      FINDINGS_TABLE_NAME       = aws_dynamodb_table.findings.name
 
       SLACK_WEBHOOK_SECRET_ARN = var.slack_webhook_secret_arn
       TEAMS_WEBHOOK_SECRET_ARN = var.teams_webhook_secret_arn
